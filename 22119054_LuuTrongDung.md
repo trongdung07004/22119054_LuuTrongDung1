@@ -93,8 +93,8 @@ openssl dgst -sha256 -out file.hash encrypted_file.bin
 ```
 openssl pkeyutl -verify -in file.hash -sigfile file.signature -pubin -inkey public_k.pem
 ```
- 
 
+![](./images/Screenshot%202024-11-25%20104337.png)
 
 # Task 2: Transfering encrypted file and decrypt it with hybrid encryption. 
 **Question 1**:
