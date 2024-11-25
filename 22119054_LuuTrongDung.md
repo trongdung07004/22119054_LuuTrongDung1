@@ -84,7 +84,18 @@ wget http://172.17.0.2:8000/aes_k.txt
 
 ```
 
+In U2
+```
+openssl dgst -sha256 -out file.hash encrypted_file.bin
+
+```
+
+```
+openssl pkeyutl -verify -in file.hash -sigfile file.signature -pubin -inkey public_k.pem
+```
  
+
+
 # Task 2: Transfering encrypted file and decrypt it with hybrid encryption. 
 **Question 1**:
 Conduct transfering a file (deliberately choosen by you) between 2 computers. 
