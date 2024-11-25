@@ -22,11 +22,11 @@ Inside u1 use the command:
 docker attach u1
 ```
 ```
-docker apt-get update 
+apt-get update 
 ```
 
 ```
-docker apt-get install openssl
+apt-get install openssl
 ```
 
 
@@ -35,11 +35,11 @@ Inside u2 use the command:
 docker attach u2
 ```
 ```
-docker apt-get update 
+apt-get update 
 ```
 
 ```
-docker apt-get install openssl
+apt-get install openssl
 ```
 # Task 1: Transfer files between computers  
 **Question 1**: 
