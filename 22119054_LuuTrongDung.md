@@ -121,7 +121,7 @@ openssl enc -aes-256-cbc -in example.txt -out example.txt.enc -pass file:symmetr
 ```
 Encrypt the symmetric key with Computer B's RSA public key
 ```
-openssl rsautl -encrypt -inkey /path/to/computer_b/public.pem -pubin -in symmetric.key -out symmetric.key.enc
+openssl rsautl -encrypt -inkey public.pem -pubin -in symmetric.key -out symmetric.key.enc
 ```
 
 # Task 3: Firewall configuration
