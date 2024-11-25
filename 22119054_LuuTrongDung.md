@@ -84,7 +84,6 @@ wget http://172.17.0.2:8000/aes_k.txt
 
 ```
 
-In U2
 ```
 openssl dgst -sha256 -out file.hash encrypted_file.bin
 
@@ -93,7 +92,7 @@ openssl dgst -sha256 -out file.hash encrypted_file.bin
 ```
 openssl pkeyutl -verify -in file.hash -sigfile file.signature -pubin -inkey public_k.pem
 ```
-
+Valid Signature Notice   
 ![](./images/Screenshot%202024-11-25%20104337.png)
 
 # Task 2: Transfering encrypted file and decrypt it with hybrid encryption. 
@@ -103,26 +102,56 @@ The file is symmetrically encrypted/decrypted by exchanging secret key which is 
 All steps are made manually with openssl at the terminal of each computer.
 
 **Answer 1**:
-Generate RSA private key
+Generate RSA private key and public key
 ```
-openssl genpkey -algorithm RSA -out private.pem -aes256
+openssl genpkey -algorithm RSA -out private_key.pem
+openssl rsa -pubout -in private_key.pem -out public_key.pem
 ```
-Extract the public key from the private key
-```
-openssl rsa -pubout -in private.pem -out public.pem
-```
+
 Generate a random 256-bit symmetric key
 ```
-openssl rand -out symmetric.key 32
+openssl rand -out secret_key.bin 32
 ```
-Encrypt the file using AES-256 with the symmetric key
+encrypt secret_key.bin
 ```
-openssl enc -aes-256-cbc -in example.txt -out example.txt.enc -pass file:symmetric.key
+openssl pkeyutl -encrypt -in secret_key.bin -pubin -inkey public_key.pem -out encrypted_key.bin
 ```
-Encrypt the symmetric key with Computer B's RSA public key
+
+Create input_file.txt
 ```
-openssl rsautl -encrypt -inkey public.pem -pubin -in symmetric.key -out symmetric.key.enc
+echo "This is a test file." > input_file.txt
 ```
+encrypt input_file.txt
+```
+openssl enc -aes-256-cbc -salt -in input_file.txt -out encrypted_file.bin -pass file:./secret_key.bin
+```
+Create Http for U2 get file
+```
+python3 -m http.server 8000
+```
+In U2 get file from U1
+```
+wget http://172.17.0.2:8000/encrypted_file.bin -O encrypted_file.bin
+wget http://172.17.0.2:8000/encrypted_key.bin -O encrypted_key.bin
+wget http://172.17.0.2:8000/public_key.pem -O public_key.pem
+wget http://172.17.0.2:8000/private_key.pem -O private_key.pem
+```
+The message from U3 is that U2 has obtained the file
+![](./images/Screenshot%202024-11-25%20141309.png)
+
+Decrypt encrypted_key.bin
+```
+openssl pkeyutl -decrypt -inkey private_key.pem -in encrypted_key.bin -out secret_key.bin
+```
+Decrypt encrypted_file.bin
+```
+ openssl enc -d -aes-256-cbc -in encrypted_file.bin -out decrypted_file.txt -pass file:./secret_key.bin
+```
+Same as file in U1 (input_file.txt)
+```
+cat decrypted_file.txt 
+```
+![](./images/Screenshot%202024-11-25%20141607.png)
 
 # Task 3: Firewall configuration
 **Question 1**:
@@ -198,7 +227,6 @@ Try connecting to U3 using SSH
 ssh root@172.17.0.4
 ```
 U3 agrees to connect from U2 to SSH
-
 ![](./images/Screenshot%202024-11-25%20102810.png)
 
 
