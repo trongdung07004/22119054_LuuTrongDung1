@@ -227,6 +227,7 @@ Try connecting to U3 using SSH
 ssh root@172.17.0.4
 ```
 U3 agrees to connect from U2 to SSH
+
 ![](./images/Screenshot%202024-11-25%20102810.png)
 
 
